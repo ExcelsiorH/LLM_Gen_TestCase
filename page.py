@@ -333,23 +333,44 @@ def html_init():
                                         value=test_cases,
                                         placeholder="请输入人工测试用例用于对比")
 
-        # 上传文件
-        uploaded_file = cols3[0].file_uploader("上传需求", type=["txt"])
+        # 上传文件，支持 txt/docx/pdf，自动解析内容
+        from document_integration import DocumentIntegration
+        if 'doc_integration' not in st.session_state:
+            st.session_state.doc_integration = DocumentIntegration()
+        uploaded_file = cols3[0].file_uploader("上传需求", type=["txt", "docx", "pdf"])
         uploaded_text = ""
         if uploaded_file is not None:
-            if uploaded_file.name.endswith('.txt'):
+            file_suffix = os.path.splitext(uploaded_file.name)[-1].lower()
+            if file_suffix == '.txt':
                 uploaded_text = uploaded_file.read().decode('utf-8', 'ignore')
+            elif file_suffix in ['.docx', '.pdf']:
+                # 保存到临时文件
+                # with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmp_file:
+                #     tmp_file.write(uploaded_file.read())
+                #     tmp_file_path = tmp_file.name
+                try:
+                    # 用文档解析集成解析
+                    if st.session_state.doc_integration.init_processor():
+                        # 处理文档
+                        parsed_text = st.session_state.doc_integration.process_uploaded_document(uploaded_file)
+                    uploaded_text = parsed_text if parsed_text else ""
+                except Exception as e:
+                    st.error(f"文档解析失败: {e}")
+                # finally:
+                #     os.remove(tmp_file_path)
 
         # 用户输入区域
-        user_input = cols3[0].text_area("需求描述",
-                                        height=250,
-                                        value=uploaded_text,
-                                        placeholder="请详细描述你的功能需求，例如：\n"
-                                                    "开发一个用户注册功能 \n"
-                                                    "1、要求用户提供用户名、密码和电子邮件，\n"
-                                                    "2、用户名长度为3-20个字符，\n"
-                                                    "3、密码长度至少为8个字符且必须包含数字和字母，\n"
-                                                    "4、电子邮件必须是有效格式。")
+        user_input = cols3[0].text_area(
+            "需求描述",
+            height=250,
+            value=uploaded_text,
+            placeholder="请详细描述你的功能需求，例如：\n"
+                        "开发一个用户注册功能 \n"
+                        "1、要求用户提供用户名、密码和电子邮件，\n"
+                        "2、用户名长度为3-20个字符，\n"
+                        "3、密码长度至少为8个字符且必须包含数字和字母，\n"
+                        "4、电子邮件必须是有效格式。"
+        )
 
         system_writer_message = read_system_message("TESTCASE_WRITER_SYSTEM_MESSAGE.txt")
         system_reader_message = read_system_message("TESTCASE_READER_SYSTEM_MESSAGE.txt")
