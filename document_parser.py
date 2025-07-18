@@ -275,39 +275,34 @@ class DocumentParser:
 
             请直接输出识别结果，不要添加额外的解释。"""
 
-            user_message = f"""请识别以下图片内容：
-
-            ![图片](data:image/png;base64,{img_base64})
-
-            请根据图片类型进行相应的处理。"""
+            user_content = [
+                {"type": "text", "text": "请识别以下图片内容："},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_base64}"}},
+                {"type": "text", "text": "请根据图片类型进行相应的处理。"}
+            ]
             
             prompt_messages = [
                 {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message}
+                {"role": "user", "content": user_content}
             ]
 
             # 设置openai参数
             openai.api_key = self.doubao_api_key
             openai.base_url = self.doubao_base_url
             
-            # 兼容openai-python 1.x/0.x
-            try:
-                response = openai.chat.completions.create(
-                    model=self.doubao_model,
-                    messages=prompt_messages,
-                    max_tokens=16384,
-                    timeout=60
-                )
-                content = response.choices[0].message.content.strip()
-            except AttributeError:
-                # 兼容旧版openai
-                response = openai.ChatCompletion.create(
-                    model=self.doubao_model,
-                    messages=prompt_messages,
-                    max_tokens=20480,
-                    timeout=60
-                )
-                content = response["choices"][0]["message"]["content"].strip()
+            response = openai.chat.completions.create(
+                model=self.doubao_model,
+                messages=prompt_messages,
+                timeout=1800,
+                extra_body={
+                    "thinking": {
+                        "type": "disabled",  # 不使用深度思考能力
+                        # "type": "enabled", # 使用深度思考能力
+                        # "type": "auto", # 模型自行判断是否使用深度思考能力
+                    }
+                },
+            )
+            content = response.choices[0].message.content.strip()
             
             if content:
                 return content
@@ -394,7 +389,7 @@ if __name__ == "__main__":
     
     try:
         # 处理文档
-        input_file = "/Users/ninebot/Desktop/移动OA系统可规划为一个四层的安全控制域.docx"  # 替换为实际文件路径
+        input_file = "/Users/ninebot/workspace/AutoGenTestCase_v1/testfile/书店系统产品需求文档.docx"  # 替换为实际文件路径
         output_file = "processed_需求文档示例.txt"
 
         if os.path.exists(input_file):
